@@ -43,6 +43,7 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "iio_demo.h"
 #include "error.h"
 #include "xml.h"
@@ -107,7 +108,10 @@ static const char demo_xml_input[] =
 static ssize_t get_demo_channel_attr(void *device, char *buf, size_t len,
 				     const struct iio_ch_info *channel)
 {
-	return snprintf(buf, len, "%"PRIu32"", demo_channel_attr);
+	ssize_t ret;
+	ret = sprintf(buf, "%"PRIu32"", demo_channel_attr);
+
+	return ret;
 }
 
 /**
@@ -137,7 +141,10 @@ static ssize_t set_demo_channel_attr(void *device, char *buf, size_t len,
 static ssize_t get_demo_global_attr(void *device, char *buf, size_t len,
 				    const struct iio_ch_info *channel)
 {
-	return snprintf(buf, len, "%"PRIu32"", demo_global_attr);
+
+	ssize_t ret;
+	ret = sprintf(buf, "%"PRIu32"", demo_global_attr);
+	return ret;
 }
 
 /**
