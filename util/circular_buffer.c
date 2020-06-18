@@ -223,9 +223,8 @@ int32_t cb_read(struct circular_buffer *desc, void *data,
 	if (!desc || !nb_elements)
 		return FAILURE;
 
-	/* Check for overflow */
 	if (nb_elements > desc->nb_elem)
-		return FAILURE;
+		return (-EAGAIN);
 	desc->nb_elem -= nb_elements;
 
 	to_read_size = nb_elements * desc->elem_size;

@@ -53,7 +53,8 @@
 
 #define IS_ERR_VALUE(x)	((x) < 0)
 
-#define	EAGAIN		11
-#define EINVAL          22
+#define	EAGAIN		11	/* Empty at this time */
+#define	ENOMEM		12	/* Not enough space */
+#define EINVAL          22	/* Invalid argument */
 
 #endif // ERROR_H_
