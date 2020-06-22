@@ -199,7 +199,7 @@ int main(void)
 		.extra = &xil_uart_init_par,
 #endif // XILINX_PLATFORM
 #ifdef ADUCM_PLATFORM
-		.baud_rate 115200,
+		.baud_rate = 115200,
 		.extra = &aducm_uart_init
 #endif
 	};

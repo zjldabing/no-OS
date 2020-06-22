@@ -137,7 +137,37 @@ endif
 #                           MAKEFILE SOURCES                              
 #------------------------------------------------------------------------------
 
+#If SRC_DIRS is empty
+ifeq ($(SRC_DIRS),)
+#get SRC_DIRS from src.mk
 include src.mk
+
+else
+
+#Complete SRC_DIRS with NOOS path
+SRC_DIRS := $(addprefix  $(NO-OS)/,$(SRC_DIRS))
+
+#Add minimal needed dirs
+SRC_DIRS +=	$(PLATFORM_DRIVERS)		\
+		$(INCLUDE)			\
+		$(NO-OS)/util	
+
+## Fill SRCS and INCS from SRC_DIRS
+
+#Include makefiles from each source directory if they exist
+SUB_MAKES= $(wildcard $(addsuffix /src.mk, $(SRC_DIRS)))
+include $(SUB_MAKES)
+
+DIRECORIES_WITH_MAKEFILES = $(patsubst %/src.mk, %,$(SUB_MAKES))
+REMAINING_DIRECORIES = $(filter-out $(DIRECORIES_WITH_MAKEFILES), $(SRC_DIRS))
+
+# recursive wildcard
+rwildcard = $(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+
+SRCS += $(foreach dir, $(REMAINING_DIRECORIES), $(call rwildcard, $(dir),*.c))
+INCS += $(foreach dir, $(REMAINING_DIRECORIES), $(call rwildcard, $(dir),*.h))
+
+endif
 
 #------------------------------------------------------------------------------
 #                     SETTING LIBRARIES IF NEEDED                              
@@ -321,6 +351,8 @@ INCS_FLAGS += $(addprefix -I,$(INCLUDE_DIRS))
 GENERIC_FLAGS = -c -DCORE0 -D_RTE_ -D__ADUCM3029__ -D__SILICON_REVISION__=0xffff -mcpu=cortex-m3 -mthumb \
 		$(INCS_FLAGS)
 
+GENERIC_FLAGS += -DADUCM_PLATFORM
+
 GENERIC_DEBUG_FLAGS = -g -gdwarf-2 -D_DEBUG
 
 GENERIC_RELEASE_FLAGS = -DNDEBUG 
@@ -481,6 +513,7 @@ build_project: project $(LIB_TARGETS)
 ifeq (y,$(strip $(DISABLE_SECURE_SOCKET)))
 DEFINE_FLAGS += -append-switch compiler -D=DISABLE_SECURE_SOCKET
 endif
+DEFINE_FLAGS += -append-switch compiler -D=ADUCM_PLATFORM
 
 #Flags for each include directory
 INCLUDE_FLAGS = $(foreach dir, $(INCLUDE_DIRS),\
