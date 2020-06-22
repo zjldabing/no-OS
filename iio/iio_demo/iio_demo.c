@@ -43,6 +43,7 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
 #include "iio_demo.h"
 #include "error.h"
 #include "xml.h"
@@ -451,7 +452,7 @@ int32_t iio_demo_init(struct iio_demo_desc **desc,
 		.write_data = iio_demo_write_dev,
 	};
 
-	status = iio_register(iio_interface);
+	status = iio_register(NULL, iio_interface);
 	if (status < 0)
 		goto error_free_iio_interface;
 
@@ -479,7 +480,7 @@ int32_t iio_demo_remove(struct iio_demo_desc *desc)
 	if (!desc)
 		return FAILURE;
 
-	status = iio_unregister(desc->iio_interface);
+	status = iio_unregister(NULL, desc->iio_interface);
 	if(status < 0)
 		return FAILURE;
 
