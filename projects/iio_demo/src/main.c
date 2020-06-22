@@ -56,6 +56,13 @@
 #include "uart.h"
 #include "uart_extra.h"
 
+#ifdef ADUCM_PLATFORM
+
+#include <sys/platform.h>
+#include "adi_initialize.h"
+#include <drivers/pwr/adi_pwr.h>
+
+#endif
 
 static struct uart_desc *uart_desc;
 
@@ -79,6 +86,21 @@ static ssize_t iio_uart_write(const char *buf, size_t len)
 static ssize_t iio_uart_read(char *buf, size_t len)
 {
 	return uart_read(uart_desc, (uint8_t *)buf, len);
+}
+
+int32_t platform_init() {
+#ifdef ADUCM_PLATFORM
+	if (ADI_PWR_SUCCESS != adi_pwr_Init())
+		return FAILURE;
+
+	if (ADI_PWR_SUCCESS != adi_pwr_SetClockDivider(ADI_CLOCK_HCLK, 1u))
+		return FAILURE;
+
+	if (ADI_PWR_SUCCESS != adi_pwr_SetClockDivider(ADI_CLOCK_PCLK, 1u))
+		return FAILURE;
+	adi_initComponents();
+#endif
+	return SUCCESS;
 }
 
 /***************************************************************************//**
@@ -120,6 +142,11 @@ int main(void)
 	/* IRQ instance. */
 	struct irq_ctrl_desc *irq_desc;
 
+
+	status = platform_init();
+	if (IS_ERR_VALUE(status))
+		return status;
+
 #ifdef XILINX_PLATFORM
 	/* Xilinx platform dependent initialization for IRQ. */
 	struct xil_irq_init_param xil_irq_init_par;
@@ -135,6 +162,12 @@ int main(void)
 #endif
 	};
 #endif // XILINX_PLATFORM
+#ifdef ADUCM_PLATFORM
+	struct aducm_uart_init_param aducm_uart_init = {
+			.parity = UART_NO_PARITY,
+			.stop_bits = UART_ONE_STOPBIT,
+			.word_length = UART_WORDLEN_8BITS };
+#endif // ADUCM_PLATFORM
 
 	irq_init_param = (struct irq_init_param ) {
 		.irq_ctrl_id = INTC_DEVICE_ID,
@@ -160,11 +193,15 @@ int main(void)
 #endif // XILINX_PLATFORM
 
 	uart_init_par = (struct uart_init_param) {
-		.baud_rate = 921600,
 		.device_id = UART_DEVICE_ID,
 #ifdef XILINX_PLATFORM
+		.baud_rate = 921600,
 		.extra = &xil_uart_init_par,
 #endif // XILINX_PLATFORM
+#ifdef ADUCM_PLATFORM
+		.baud_rate 115200,
+		.extra = &aducm_uart_init
+#endif
 	};
 
 	status = uart_init(&uart_desc, &uart_init_par);
@@ -192,7 +229,9 @@ int main(void)
 	iio_demo_out_init_par = (struct iio_demo_init_param) {
 		.name = demo_device_output,
 		.num_channels = 4,
+#ifdef XILINX_PLATFORM
 		.ddr_base_addr = DAC_DDR_BASEADDR,
+#endif
 	};
 
 	status = iio_demo_init(&iio_demo_out_desc, &iio_demo_out_init_par);
@@ -202,7 +241,9 @@ int main(void)
 	iio_demo_in_init_par = (struct iio_demo_init_param) {
 		.name = demo_device_input,
 		.num_channels = 4,
+#ifdef XILINX_PLATFORM
 		.ddr_base_addr = DAC_DDR_BASEADDR,
+#endif
 	};
 
 	status = iio_demo_init(&iio_demo_in_desc, &iio_demo_in_init_par);

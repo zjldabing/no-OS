@@ -43,11 +43,20 @@
 /***************************** Include Files **********************************/
 /******************************************************************************/
 
+#ifdef XILINX_PLATFORM
 #include <xparameters.h>
+#endif
+
+#ifdef ADUCM_PLATFORM
+#include "irq_extra.h"
+#endif
 
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
 /******************************************************************************/
+
+
+#ifdef XILINX_PLATFORM
 
 #ifdef _XPARAMETERS_PS_H_
 #define ADC_DDR_BASEADDR	(XPAR_DDR_MEM_BASEADDR + 0x800000)
@@ -76,5 +85,15 @@
 #define UART_IRQ_ID		XPAR_AXI_INTC_AXI_UART_INTERRUPT_INTR
 
 #endif // _XPARAMETERS_PS_H_
+
+#endif // XILINX_PLATFORM
+
+#ifdef ADUCM_PLATFORM
+
+#define UART_DEVICE_ID	0
+#define INTC_DEVICE_ID	0
+#define UART_IRQ_ID		ADUCM_UART_INT_ID
+
+#endif //ADUCM_PLATFORM
 
 #endif // __PARAMETERS_H__

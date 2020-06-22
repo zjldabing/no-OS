@@ -82,8 +82,10 @@ struct iio_demo_init_param {
 	const char *name;
 	/** Number of channels */
 	uint8_t num_channels;
+#ifndef ADUCM_PLATFORM
 	/** Address used by for reading/writing data to device */
 	uint32_t ddr_base_addr;
+#endif //ADUCM_PLATFORM
 };
 
 /******************************************************************************/

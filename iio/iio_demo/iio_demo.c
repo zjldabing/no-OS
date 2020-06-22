@@ -53,6 +53,13 @@
 /********************** Macros and Constants Definitions **********************/
 /******************************************************************************/
 
+#ifdef ADUCM_PLATFORM
+
+#define MAX_BUFF_SIZE 5000
+static uint8_t g_buff[MAX_BUFF_SIZE];
+
+#endif
+
 static uint32_t demo_channel_attr = 0;
 static uint32_t demo_global_attr = 0;
 
@@ -295,11 +302,21 @@ static ssize_t iio_demo_write_dev(void *iio_inst, char *buf,
 
 	buf16 = (uint16_t *)buf;
 	demo_device = (struct iio_demo_device *)iio_inst;
+#ifdef XILINX_PLATFORM
 	addr = demo_device->ddr_base_addr + offset;
 	for(index = 0; index < bytes_count; index += 2) {
 		uint32_t *local_addr = (uint32_t *)(addr + index * 2);
 		*local_addr = (buf16[index + 1] << 16) | buf16[index];
 	}
+#endif
+#ifdef ADUCM_PLATFORM
+	addr = (uint32_t)g_buff;
+	for(index = 0; index < bytes_count; index += 2) {
+		uint32_t *local_addr = (uint32_t *)(addr + (index * 2) % MAX_BUFF_SIZE);
+		*local_addr = (buf16[index + 1] << 16) | buf16[index];
+	}
+#endif
+
 
 	return bytes_count;
 }
@@ -341,8 +358,14 @@ static ssize_t iio_demo_read_dev(void *iio_inst, char *pbuf, size_t offset,
 	for (i = 0; i < samples; i++) {
 
 		if (ch_mask & BIT(current_ch)) {
+#ifdef XILINX_PLATFORM
 			pbuf16[j] = *(uint16_t*)(demo_device->ddr_base_addr +
 						 offset + i * 2);
+#endif
+#ifdef ADUCM_PLATFORM
+			pbuf16[j] = *(uint16_t*)(g_buff + ((offset + i * 2) % MAX_BUFF_SIZE));
+#endif
+
 			j++;
 		}
 
@@ -403,7 +426,9 @@ int32_t iio_demo_init(struct iio_demo_desc **desc,
 
 	iio_demo_device_inst->name = init->name;
 	iio_demo_device_inst->num_channels = init->num_channels;
+#ifdef XILINX_PLATFORM
 	iio_demo_device_inst->ddr_base_addr = init->ddr_base_addr;
+#endif
 
 	iio_device = iio_demo_create_device(init->name,
 					    iio_demo_device_inst->num_channels);
