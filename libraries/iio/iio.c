@@ -791,7 +791,8 @@ ssize_t iio_init(struct iio_desc **desc, struct iio_init_param *init_param)
 	if (!ops)
 		return FAILURE;
 
-	if (!init_param || init_param->phy_type == USE_NETWORK)
+	if (!init_param || (init_param->phy_type != USE_NETWORK
+						&& init_param->phy_type != USE_UART))
 		return -EINVAL;
 
 	ldesc = (struct iio_desc *)calloc(1, sizeof(*ldesc));
@@ -816,14 +817,20 @@ ssize_t iio_init(struct iio_desc **desc, struct iio_init_param *init_param)
 	ldesc->phy_type = init_param->phy_type;
 	if (init_param->phy_type == USE_UART) {
 		ret = uart_init((struct uart_desc **)&ldesc->phy_desc,
-					init_param->phy_init_param);
+					init_param->uart_init_param);
 		if (IS_ERR_VALUE(ret))
 			goto free_desc;
-		ops->read = iio_phy_read;
-		ops->write = iio_phy_write;
 	} else {
-		goto free_desc;
+		ret = socket_init((struct uart_desc **)&ldesc->phy_desc,
+				init_param->tcp_socket_init_param);
+		if (IS_ERR_VALUE(ret))
+			goto free_desc;
+
 	}
+
+	ops->read = iio_phy_read;
+	ops->write = iio_phy_write;
+
 	ops->get_xml = iio_get_xml;
 
 	ret = list_init(&ldesc->interfaces_list, LIST_PRIORITY_LIST,

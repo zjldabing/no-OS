@@ -96,4 +96,12 @@
 
 #endif //ADUCM_PLATFORM
 
+#define WIFI_SSID		"****"
+#define WIFI_PWD		"****"
+
+#undef WIFI_SSID
+#undef WIFI_PWD
+#define WIFI_SSID		"MyRoom"
+#define WIFI_PWD		"12348765"
+
 #endif // __PARAMETERS_H__

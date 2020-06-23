@@ -56,6 +56,9 @@
 #include "uart.h"
 #include "uart_extra.h"
 
+#include "wifi.h"
+#include "tcp_socket.h"
+
 #ifdef ADUCM_PLATFORM
 
 #include <sys/platform.h>
@@ -182,7 +185,7 @@ int main(void)
 		return status;
 
 	iio_init_param.phy_type = USE_UART;
-	iio_init_param.phy_init_param = &uart_init_par;
+	iio_init_param.uart_init_param = &uart_init_par;
 
 	status = iio_init(&iio_desc, &iio_init_param);
 	if(status < 0)

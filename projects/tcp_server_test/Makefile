@@ -1,12 +1,11 @@
-TARGET := iio_demo
-TINYIIOD ?= y
+TARGET := tcp_server_test
+TINYIIOD ?= n
 
 PLATFORM = aducm3029
 
 ifeq (aducm3029,$(strip $(PLATFORM)))
 
 SRC_DIRS += projects/$(TARGET)/src
-SRC_DIRS += iio/iio_demo
 
 DISABLE_SECURE_SOCKET=y
 SRC_DIRS += network
