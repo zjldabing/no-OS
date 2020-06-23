@@ -47,24 +47,13 @@
 #include "ctype.h"
 #include "tinyiiod.h"
 #include "util.h"
+#include "list.h"
 #include "error.h"
-#include "errno.h"
 #include "uart.h"
 
 /******************************************************************************/
 /*************************** Types Declarations *******************************/
 /******************************************************************************/
-
-/**
- * @struct iio_interfaces
- * @brief Structure containing all interfaces.
- */
-struct iio_interfaces {
-	/** List containing all interfaces */
-	struct iio_interface **interfaces;
-	/** Number of Interfaces */
-	uint8_t num_interfaces;
-};
 
 /**
  * @struct element_info
@@ -86,12 +75,9 @@ struct iio_desc {
 	struct tinyiiod_ops		*iiod_ops;
 	enum pysical_link_type	phy_type;
 	void					*phy_desc;
+	struct list_desc		*interfaces_list;
 };
 
-/**
- * iio_read_attr(), iio_write_attr() functions, they need to know about iio_interfaces
- */
-static struct iio_interfaces	*iio_interfaces = NULL;
 static struct iio_desc			*g_desc;
 
 /******************************************************************************/
@@ -189,20 +175,20 @@ static int16_t iio_get_attribute_id(const char *attr,
  * @param iio_interfaces - List of interfaces.
  * @return Interface pointer if interface is found, NULL otherwise.
  */
-static struct iio_interface *iio_get_interface(const char *device_name,
-		struct iio_interfaces *iio_interfaces)
+static struct iio_interface *iio_get_interface(const char *device_name)
 {
-	int16_t i;
+	struct iio_interface	*interface;
+	struct iio_interface	cmp_val;
+	int32_t					ret;
 
-	if (!iio_interfaces)
+	cmp_val.name = device_name;
+
+	ret = list_read_find(g_desc->interfaces_list,
+							(void **)&interface, &cmp_val);
+	if (IS_ERR_VALUE(ret))
 		return NULL;
 
-	for (i = 0; i < iio_interfaces->num_interfaces; i++) {
-		if (!strcmp(device_name, iio_interfaces->interfaces[i]->name))
-			return iio_interfaces->interfaces[i];
-	}
-
-	return NULL;
+	return interface;
 }
 
 /**
@@ -294,8 +280,7 @@ static ssize_t iio_rd_wr_channel_attribute(struct element_info *el_info,
 		struct iio_channel *channel, bool is_write)
 {
 	int16_t attribute_id;
-	struct iio_interface *iface = iio_get_interface(el_info->device_name,
-				      iio_interfaces);
+	struct iio_interface *iface = iio_get_interface(el_info->device_name);
 	const struct iio_ch_info channel_info = {
 		iio_get_channel_number(el_info->channel_name),
 		el_info->ch_out
@@ -349,7 +334,7 @@ static ssize_t iio_rd_wr_attribute(struct element_info *el_info, char *buf,
 
 	if (!strcmp(el_info->channel_name, "")) {
 		/* it is attribute of a device */
-		iface = iio_get_interface(el_info->device_name, iio_interfaces);
+		iface = iio_get_interface(el_info->device_name);
 
 		if (!strcmp(el_info->attribute_name, "")) {
 			/* read / write all device attributes */
@@ -390,7 +375,7 @@ static ssize_t iio_rd_wr_attribute(struct element_info *el_info, char *buf,
  */
 static bool iio_supported_dev(const char *device)
 {
-	return (NULL != iio_get_interface(device, iio_interfaces));
+	return (NULL != iio_get_interface(device));
 }
 
 /**
@@ -415,7 +400,7 @@ static ssize_t iio_read_attr(const char *device, const char *attr, char *buf,
 	el_info.channel_name = "";	/* there is no channel here */
 	el_info.attribute_name = attr;
 
-	iio_device = iio_get_interface(device, iio_interfaces);
+	iio_device = iio_get_interface(device);
 	if (!iio_device)
 		return FAILURE;
 
@@ -445,7 +430,7 @@ static ssize_t iio_write_attr(const char *device, const char *attr,
 	el_info.channel_name = "";	/* there is no channel here */
 	el_info.attribute_name = attr;
 
-	iio_interface = iio_get_interface(device, iio_interfaces);
+	iio_interface = iio_get_interface(device);
 	if (!iio_interface)
 		return FAILURE;
 
@@ -476,7 +461,7 @@ static ssize_t iio_ch_read_attr(const char *device, const char *channel,
 	el_info.attribute_name = attr;
 	el_info.ch_out = ch_out;
 
-	iio_interface = iio_get_interface(device, iio_interfaces);
+	iio_interface = iio_get_interface(device);
 	if (!device)
 		return FAILURE;
 
@@ -506,7 +491,7 @@ static ssize_t iio_ch_write_attr(const char *device, const char *channel,
 	el_info.channel_name = channel;
 	el_info.attribute_name = attr;
 	el_info.ch_out = ch_out;
-	iio_interface = iio_get_interface(device, iio_interfaces);
+	iio_interface = iio_get_interface(device);
 
 	if (!iio_interface)
 		return -ENOENT;
@@ -530,7 +515,7 @@ static int32_t iio_open_dev(const char *device, size_t sample_size,
 	if (!iio_supported_dev(device))
 		return -ENODEV;
 
-	iface = iio_get_interface(device, iio_interfaces);
+	iface = iio_get_interface(device);
 	ch_mask = 0xFFFFFFFF >> (32 - iface->iio->num_ch);
 
 	if (mask & ~ch_mask)
@@ -552,7 +537,7 @@ static int32_t iio_close_dev(const char *device)
 
 	if (!iio_supported_dev(device))
 		return FAILURE;
-	iface = iio_get_interface(device, iio_interfaces);
+	iface = iio_get_interface(device);
 	iface->ch_mask = 0;
 
 	return SUCCESS;
@@ -571,7 +556,7 @@ static int32_t iio_get_mask(const char *device, uint32_t *mask)
 	if (!iio_supported_dev(device))
 		return -ENODEV;
 
-	iface = iio_get_interface(device, iio_interfaces);
+	iface = iio_get_interface(device);
 	*mask = iface->ch_mask;
 
 	return SUCCESS;
@@ -585,7 +570,7 @@ static int32_t iio_get_mask(const char *device, uint32_t *mask)
  */
 static ssize_t iio_transfer_dev_to_mem(const char *device, size_t bytes_count)
 {
-	struct iio_interface *iio_interface = iio_get_interface(device, iio_interfaces);
+	struct iio_interface *iio_interface = iio_get_interface(device);
 
 	if (iio_interface->transfer_dev_to_mem)
 		return iio_interface->transfer_dev_to_mem(iio_interface->dev_instance,
@@ -608,7 +593,7 @@ static ssize_t iio_transfer_dev_to_mem(const char *device, size_t bytes_count)
 static ssize_t iio_read_dev(const char *device, char *pbuf, size_t offset,
 			    size_t bytes_count)
 {
-	struct iio_interface *iio_interface = iio_get_interface(device, iio_interfaces);
+	struct iio_interface *iio_interface = iio_get_interface(device);
 
 	if (iio_interface->read_data)
 		return iio_interface->read_data(iio_interface->dev_instance, pbuf, offset,
@@ -625,7 +610,7 @@ static ssize_t iio_read_dev(const char *device, char *pbuf, size_t offset,
  */
 static ssize_t iio_transfer_mem_to_dev(const char *device, size_t bytes_count)
 {
-	struct iio_interface *iio_interface = iio_get_interface(device, iio_interfaces);
+	struct iio_interface *iio_interface = iio_get_interface(device);
 
 	if (iio_interface->transfer_mem_to_dev)
 		return iio_interface->transfer_mem_to_dev(iio_interface->dev_instance,
@@ -648,7 +633,7 @@ static ssize_t iio_transfer_mem_to_dev(const char *device, size_t bytes_count)
 static ssize_t iio_write_dev(const char *device, const char *buf,
 			     size_t offset, size_t bytes_count)
 {
-	struct iio_interface *iio_interface = iio_get_interface(device, iio_interfaces);
+	struct iio_interface *iio_interface = iio_get_interface(device);
 	if(iio_interface->write_data)
 		return iio_interface->write_data(iio_interface->dev_instance, (char*)buf,
 						 offset, bytes_count, iio_interface->ch_mask);
@@ -664,8 +649,9 @@ static ssize_t iio_write_dev(const char *device, const char *buf,
 static ssize_t iio_get_xml(char **outxml)
 {
 	char *xml, *tmp_xml, *tmp_xml2;
+	struct	iterator		*list_it = NULL;
+	struct	iio_interface	*iio_interface;
 	uint32_t length;
-	uint16_t i;
 	ssize_t ret;
 
 	char header[] = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
@@ -699,9 +685,16 @@ static ssize_t iio_get_xml(char **outxml)
 		return FAILURE;
 
 	strcpy(xml, header);
-	for (i = 0; i < iio_interfaces->num_interfaces; i++) {
-		ret = iio_interfaces->interfaces[i]->get_xml(&tmp_xml,
-				iio_interfaces->interfaces[i]->iio);
+	ret = iterator_init(&list_it, g_desc->interfaces_list, true);
+	if (IS_ERR_VALUE(ret))
+		goto error;
+
+	do {
+		ret = iterator_read(list_it, (void **)&iio_interface);
+		if (IS_ERR_VALUE(ret))
+			goto error;
+
+		ret = iio_interface->get_xml(&tmp_xml, iio_interface->iio);
 		if (ret < 0)
 			goto error;
 
@@ -712,7 +705,11 @@ static ssize_t iio_get_xml(char **outxml)
 
 		xml = tmp_xml2;
 		strcpy((xml + length), tmp_xml);
-	}
+
+		ret = iterator_move(list_it, 1);
+	} while (!IS_ERR_VALUE(ret));
+
+	iterator_remove(list_it);
 
 	length = strlen(xml);
 	tmp_xml = (char *)realloc(xml, strlen(xml) + strlen(header_end) + 1);
@@ -726,6 +723,8 @@ static ssize_t iio_get_xml(char **outxml)
 
 	return SUCCESS;
 error:
+	if (list_it)
+		iterator_remove(list_it);
 	free(xml);
 
 	return FAILURE;
@@ -749,34 +748,7 @@ ssize_t iio_step(struct iio_desc *desc) {
  */
 ssize_t iio_register(struct iio_desc *desc, struct iio_interface *iio_interface)
 {
-
-	struct iio_interface **temp_interfaces;
-
-	if (!(iio_interfaces)) {
-		iio_interfaces = (struct iio_interfaces *)calloc(1,
-				 sizeof(struct iio_interfaces));
-		if (!iio_interfaces)
-			return -ENOMEM;
-
-		iio_interfaces->num_interfaces = 1;
-		iio_interfaces->interfaces = (struct iio_interface **)calloc(1,
-					     sizeof(struct iio_interface*));
-		if (!iio_interfaces->interfaces)
-			return -ENOMEM;
-	} else {
-		iio_interfaces->num_interfaces++;
-		temp_interfaces = (struct iio_interface **)realloc(iio_interfaces->interfaces,
-				  iio_interfaces->num_interfaces * sizeof(struct iio_interface*));
-		if (!temp_interfaces) {
-			free(iio_interfaces->interfaces);
-			return -ENOMEM;
-		}
-		iio_interfaces->interfaces = temp_interfaces;
-	}
-
-	iio_interfaces->interfaces[iio_interfaces->num_interfaces - 1] = iio_interface;
-
-	return SUCCESS;
+	return desc->interfaces_list->push(desc->interfaces_list, iio_interface);
 }
 
 /**
@@ -788,34 +760,17 @@ ssize_t iio_register(struct iio_desc *desc, struct iio_interface *iio_interface)
 ssize_t iio_unregister(struct iio_desc *desc,
 						struct iio_interface *iio_interface)
 {
-	struct iio_interfaces *interfaces;
-	int16_t i, deleted = 0;
+	struct iio_interface	*to_remove_interface;
 
-	interfaces = (struct iio_interfaces *)calloc(1, sizeof(struct iio_interfaces));
-	if (!interfaces)
-		return FAILURE;
+	/* Get if the item is found, get will remove it from the list */
+	return list_get_find(desc->interfaces_list, (void **)&to_remove_interface,
+							iio_interface);
+}
 
-	interfaces->interfaces = (struct iio_interface **)calloc(
-					 iio_interfaces->num_interfaces - 1,
-					 sizeof(struct iio_interface*));
-	if (!interfaces->interfaces) {
-		free(interfaces);
-		return FAILURE;
-	}
-
-	for(i = 0; i < iio_interfaces->num_interfaces; i++) {
-		if (!strcmp(iio_interface->name, iio_interfaces->interfaces[i]->name)) {
-			iio_interface = iio_interfaces->interfaces[i];
-			deleted = 1;
-			continue;
-		}
-		interfaces->interfaces[i - deleted] = iio_interfaces->interfaces[i];
-	}
-
-	interfaces->num_interfaces = iio_interfaces->num_interfaces - 1;
-	free(iio_interfaces);
-
-	return deleted ? SUCCESS : FAILURE;
+static int32_t iio_cmp_interfaces(struct iio_interface *a,
+									struct iio_interface *b)
+{
+	return strcmp(a->name, b->name);
 }
 
 /**
@@ -871,15 +826,22 @@ ssize_t iio_init(struct iio_desc **desc, struct iio_init_param *init_param)
 	}
 	ops->get_xml = iio_get_xml;
 
+	ret = list_init(&ldesc->interfaces_list, LIST_PRIORITY_LIST,
+			(f_cmp)iio_cmp_interfaces);
+	if (IS_ERR_VALUE(ret))
+		goto free_pylink;
+
 	ldesc->iiod = tinyiiod_create(ops);
 	if (!(ldesc->iiod))
-		goto free_pylink;
+		goto free_list;
 
 	*desc = ldesc;
 	g_desc = ldesc;
 
 	return SUCCESS;
 
+free_list:
+	list_remove(ldesc->interfaces_list);
 free_pylink:
 	if (ldesc->phy_type == USE_UART)
 		uart_remove(ldesc->phy_desc);
@@ -898,12 +860,7 @@ free_ops:
  */
 ssize_t iio_remove(struct iio_desc *desc)
 {
-	uint8_t i;
-
-	for (i = 0; i < iio_interfaces->num_interfaces; i++)
-		free(iio_interfaces->interfaces[i]);
-
-	free(iio_interfaces);
+	list_remove(desc->interfaces_list);
 	tinyiiod_destroy(desc->iiod);
 	//This should be done here but first should be removed from tinyiiod_destroy
 	//free(desc->iiod_ops);
