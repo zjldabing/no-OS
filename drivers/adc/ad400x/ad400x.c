@@ -149,14 +149,19 @@ int32_t ad400x_init(struct ad400x_dev **device,
 	spi_engine_set_transfer_width(dev->spi_desc, 16);
 	ad400x_spi_reg_read(dev, &data);
 
-	spi_engine_set_transfer_width(dev->spi_desc, spi_eng_init_param->data_width);
-	data = AD400X_TURBO_MODE(init_param->turbo_mode) |
+//	spi_engine_set_transfer_width(dev->spi_desc, spi_eng_init_param->data_width);
+	data |= AD400X_TURBO_MODE(init_param->turbo_mode) |
 	       AD400X_HIGH_Z_MODE(init_param->high_z_mode) |
 	       AD400X_SPAN_COMPRESSION(init_param->span_compression) |
 	       AD400X_EN_STATUS_BITS(init_param->en_status_bits);
 	ret = ad400x_spi_reg_write(dev, data);
 	if (ret < 0)
 		goto error;
+
+//	spi_engine_set_transfer_width(dev->spi_desc, 16);
+	ad400x_spi_reg_read(dev, &data);
+
+	spi_engine_set_transfer_width(dev->spi_desc, spi_eng_init_param->data_width);
 
 	*device = dev;
 

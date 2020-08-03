@@ -14,7 +14,7 @@
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
 /******************************************************************************/
-#define AD400x_EVB_SAMPLE_NO			1000
+#define AD400x_EVB_SAMPLE_NO			10000
 #define AD400X_DMA_BASEADDR             XPAR_AXI_AD40XX_DMA_BASEADDR
 #define AD400X_SPI_ENGINE_BASEADDR      XPAR_SPI_AD40XX_AXI_REGMAP_BASEADDR
 #define AD400x_SPI_CS                   0
@@ -33,7 +33,7 @@ struct spi_engine_init_param spi_eng_init_param  = {
 struct ad400x_init_param ad400x_init_param = {
 	.spi_init = {
 		.chip_select = AD400x_SPI_CS,
-		.max_speed_hz = 80000000,
+		.max_speed_hz = 40000000,
 		.mode = SPI_MODE_0,
 		.platform_ops = &spi_eng_platform_ops,
 		.extra = (void*)&spi_eng_init_param,
@@ -99,11 +99,11 @@ int main()
 		Xil_DCacheInvalidateRange(0x800000, AD400x_EVB_SAMPLE_NO * 4);
 		offload_data = (uint32_t *)msg.rx_addr;
 
-		for(i = 0; i < AD400x_EVB_SAMPLE_NO; i++) {
+		for(i = 0; i < AD400x_EVB_SAMPLE_NO / 2; i++) {
 			data = *offload_data & 0xFFFFF;
 			if (data > 524287)
 				data = data - 1048576;
-			printf("ADC%d: %d\n", i, data);
+			printf("ADC%d: %d \n", i, data);
 			offload_data += 1;
 		}
 	}
